@@ -396,7 +396,7 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                     YouTubeLiveStream stream = new YouTubeLiveStream(manifestUrl, YouTubeLiveStream.Type.HLS);
                     streams.put("live_hls", stream);
                 } else {
-                    emitter.onError(new BadExtractorException("no conn, hlsvp or url_encoded_fmt_stream_map information found in video info", vid));
+                    emitter.onError(new NotSupportedVideoException("no conn, hlsvp or url_encoded_fmt_stream_map information found in video info", vid));
                     return;
                 }
 
