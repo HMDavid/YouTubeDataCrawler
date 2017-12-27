@@ -43,4 +43,14 @@ public class WindowSettings {
         return variantChecksum;
     }
 
+    @Override
+    public String toString() {
+        return "WindowSettings{" +
+                "\nbuildId='" + buildId + '\'' +
+                "\nbuildLabel='" + buildLabel + '\'' +
+                "\nclientName='" + clientName + '\'' +
+                "\nclientVersion='" + clientVersion + '\'' +
+                "\nvariantChecksum='" + variantChecksum + '\'' +
+                '}';
+    }
 }

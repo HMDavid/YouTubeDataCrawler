@@ -37,6 +37,8 @@ import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import rx.Observable;
+import rx.schedulers.Schedulers;
+import rx.subjects.BehaviorSubject;
 
 import static com.github.khangnt.youtubecrawler.internal.Preconditions.notNull;
 import static com.github.khangnt.youtubecrawler.internal.Utils.mobileWebPageDownloadRequestBuilder;
@@ -74,6 +76,8 @@ public class YouTubeData {
 
     private OkHttpClient okHttpClient;
     private Gson gson;
+
+    private BehaviorSubject<WindowSettings> mWindowSettingsBehaviorSubject;
 
     private YouTubeData(OkHttpClient okHttpClient, Gson gson) {
         this.okHttpClient = okHttpClient;
@@ -144,9 +148,19 @@ public class YouTubeData {
     }
 
     private Observable<WindowSettings> getWindowSettings(String webPageUrl) {
-        Request.Builder webPageReqBuilder = mobileWebPageDownloadRequestBuilder(webPageUrl);
-        return rx(getOkHttpClient().newCall(webPageReqBuilder.build()))
-                .flatMap(parseWindowSettings(getGson()));
+        return Observable.defer(() -> {
+            if (mWindowSettingsBehaviorSubject == null
+                    || mWindowSettingsBehaviorSubject.hasThrowable()) {
+                mWindowSettingsBehaviorSubject = BehaviorSubject.create();
+                Request.Builder webPageReqBuilder = mobileWebPageDownloadRequestBuilder(webPageUrl);
+                rx(getOkHttpClient().newCall(webPageReqBuilder.build()))
+                        .flatMap(parseWindowSettings(getGson()))
+                        .subscribeOn(Schedulers.io())
+                        .subscribe(mWindowSettingsBehaviorSubject::onNext, mWindowSettingsBehaviorSubject::onError);
+            }
+
+            return mWindowSettingsBehaviorSubject.take(1).asObservable();
+        });
     }
 
     private <T extends AbstractResponse> Observable<ResponseData<T>> handleAjaxRequest(
