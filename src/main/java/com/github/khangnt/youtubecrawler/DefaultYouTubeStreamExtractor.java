@@ -101,7 +101,8 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                 //noinspection ConstantConditions
                 return response.body().string();
             } else {
-                exception = new HttpClientException(response.code(), response.message());
+                exception = new HttpClientException(response.code(), response.message(),
+                        response.body().string());
             }
         } catch (IOException error) {
             exception = error;
@@ -601,7 +602,8 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                     return result;
                 }
             } else {
-                exception = new HttpClientException(response.code(), response.message());
+                exception = new HttpClientException(response.code(), response.message(),
+                        response.body().string());
             }
         } catch (IOException e) {
             exception = e;

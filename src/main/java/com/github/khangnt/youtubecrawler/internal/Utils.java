@@ -93,7 +93,8 @@ public class Utils {
             if (response.code() / 100 == 2) {
                 return response.body().string();
             } else {
-                throw new HttpClientException(response.code(), response.message());
+                throw new HttpClientException(response.code(), response.message(),
+                        response.body().string());
             }
         });
     }

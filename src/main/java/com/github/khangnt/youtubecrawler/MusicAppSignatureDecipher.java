@@ -72,7 +72,8 @@ public class MusicAppSignatureDecipher implements SignatureDecipher {
                 }
                 return decryptedSignature;
             } else {
-                exception = new HttpClientException(response.code(), response.message());
+                exception = new HttpClientException(response.code(), response.message(),
+                        response.body().string());
             }
         } catch (Exception e) {
             exception = e;
