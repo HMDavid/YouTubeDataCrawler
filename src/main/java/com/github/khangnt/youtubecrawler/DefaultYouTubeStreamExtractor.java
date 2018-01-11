@@ -263,7 +263,9 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                     }
                     return subtitles;
                 });
-                subtitleListLazy.getAsync();
+                if (options.isParseSubtitle()) {
+                    subtitleListLazy.getAsync();
+                }
 
                 List<String> urlEncodedFmtStreamMap = videoInfo.get("url_encoded_fmt_stream_map");
                 List<String> adaptiveFmts = videoInfo.get("adaptive_fmts");
