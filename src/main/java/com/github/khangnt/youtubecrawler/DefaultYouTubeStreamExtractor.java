@@ -387,15 +387,15 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                             }
                         }
                     }
-                } else if (isLive) {
-                    if (isEmpty(videoInfo.get("hlsvp"))) {
-                        emitter.onError(new BadExtractorException("Can't extract Live video HLS manifest link", vid));
-                        return;
-                    }
+                }
+
+                if (!isEmpty(videoInfo.get("hlsvp"))) {
                     String manifestUrl = videoInfo.get("hlsvp").get(0);
                     YouTubeLiveStream stream = new YouTubeLiveStream(manifestUrl, YouTubeLiveStream.Type.HLS);
                     streams.put("live_hls", stream);
-                } else {
+                }
+
+                if (streams.isEmpty()){
                     emitter.onError(new NotSupportedVideoException("no conn, hlsvp or url_encoded_fmt_stream_map information found in video info", vid));
                     return;
                 }
