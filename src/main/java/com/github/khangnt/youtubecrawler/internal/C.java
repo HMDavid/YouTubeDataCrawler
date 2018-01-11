@@ -16,6 +16,5 @@ public class C {
     static final String BROWSER_ACCEPT_LANGUAGE = "en-us,en;q=0.5";
     static final String BROWSER_ACCEPT_CHARSET = "ISO-8859-1,utf-8;q=0.7,*;q=0.7";
     static final String MOBILE_BROWSER_USER_AGENT = "Mozilla/5.0 (Linux; Android 4.3; Nexus 10 Build/JSS15Q) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36";
-    static final String DESKTOP_BROWSER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:10.0) Gecko/20150101 Firefox/47.0 (Chrome)";
-
+    static final String DESKTOP_BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36";
 }
