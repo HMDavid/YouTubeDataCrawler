@@ -202,38 +202,44 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                         sts = String.valueOf(ytPlayerConfig.get("sts"));
                     }
                 }
-                HttpUrl baseUrl = notNull(HttpUrl.parse("https://www.youtube.com/get_video_info" +
-                        "?video_id=" + vid +
-                        "&ps=default" +
-                        "&eurl=" +
-                        "&gl=US" +
-                        "&hl=en"));
-                // looking in get_video_info
-                for (String el : Arrays.asList("info", "embedded", "detailpage", "vevo", "")) {
-                    HttpUrl.Builder urlBuilder = baseUrl.newBuilder();
-                    if (!isEmpty(el)) {
-                        urlBuilder.setQueryParameter("el", el);
-                    }
-                    if (!isEmpty(sts)) {
-                        urlBuilder.setQueryParameter("sts", sts);
-                    }
-                    videoInfoWebPage = blockingDownload(urlBuilder.build().toString(), false, null);
-                    if (isEmpty(videoInfoWebPage)) continue;
-                    Map<String, List<String>> getVideoInfo = splitQuery(videoInfoWebPage);
+                if (options.isParseDashManifest()
+                        || videoInfo == null
+                        || !videoInfo.containsKey("token")) {
+                    HttpUrl baseUrl = notNull(HttpUrl.parse("https://www.youtube.com/get_video_info" +
+                            "?video_id=" + vid +
+                            "&ps=default" +
+                            "&eurl=" +
+                            "&gl=US" +
+                            "&hl=en"));
+                    // looking in get_video_info
+                    for (String el : Arrays.asList("", "detailpage", "embedded", "vevo", "info")) {
+                        HttpUrl.Builder urlBuilder = baseUrl.newBuilder();
+                        if (!isEmpty(el)) {
+                            urlBuilder.setQueryParameter("el", el);
+                        } else {
+                            urlBuilder.removeAllQueryParameters("el");
+                        }
+                        if (!isEmpty(sts)) {
+                            urlBuilder.setQueryParameter("sts", sts);
+                        }
+                        videoInfoWebPage = blockingDownload(urlBuilder.build().toString(), false, null);
+                        if (isEmpty(videoInfoWebPage)) continue;
+                        Map<String, List<String>> getVideoInfo = splitQuery(videoInfoWebPage);
 
-                    if (!isEmpty(getVideoInfo.get("dashmpd"))) {
-                        String originUrl = getVideoInfo.get("dashmpd").get(0);
-                        dashMpds.put(originUrl, getMpdUrlLazy(originUrl, signatureHolder, vid));
-                    }
+                        if (!isEmpty(getVideoInfo.get("dashmpd"))) {
+                            String originUrl = getVideoInfo.get("dashmpd").get(0);
+                            dashMpds.put(originUrl, getMpdUrlLazy(originUrl, signatureHolder, vid));
+                        }
 
-                    if (videoInfo == null) {
-                        videoInfo = getVideoInfo;
-                    }
-                    if (getVideoInfo.containsKey("token")) {
-                        if (!videoInfo.containsKey("token")) {
+                        if (videoInfo == null) {
                             videoInfo = getVideoInfo;
                         }
-                        break;
+                        if (getVideoInfo.containsKey("token")) {
+                            if (!videoInfo.containsKey("token")) {
+                                videoInfo = getVideoInfo;
+                            }
+                            break;
+                        }
                     }
                 }
                 if (videoInfo == null || !videoInfo.containsKey("token")) {

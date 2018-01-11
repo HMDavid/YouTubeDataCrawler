@@ -13,10 +13,12 @@ public interface YouTubeStreamExtractor {
     class Options {
         private boolean markWatched;
         private boolean parseSubtitle;
+        private boolean parseDashManifest;
 
         public Options(Builder builder) {
             this.markWatched = builder.markWatched;
             this.parseSubtitle = builder.parseSubtitle;
+            this.parseDashManifest = builder.parseDashManifest;
         }
 
         public boolean isMarkWatched() {
@@ -27,6 +29,10 @@ public interface YouTubeStreamExtractor {
             return parseSubtitle;
         }
 
+        public boolean isParseDashManifest() {
+            return parseDashManifest;
+        }
+
         public static Builder builder() {
             return new Builder();
         }
@@ -34,6 +40,7 @@ public interface YouTubeStreamExtractor {
         public static final class Builder {
             private boolean markWatched = false;
             private boolean parseSubtitle = false;
+            private boolean parseDashManifest = true;
 
             Builder() {
             }
@@ -45,6 +52,11 @@ public interface YouTubeStreamExtractor {
 
             public Builder setParseSubtitle(boolean parseSubtitle) {
                 this.parseSubtitle = parseSubtitle;
+                return this;
+            }
+
+            public Builder setParseDashManifest(boolean parseDashManifest) {
+                this.parseDashManifest = parseDashManifest;
                 return this;
             }
 
