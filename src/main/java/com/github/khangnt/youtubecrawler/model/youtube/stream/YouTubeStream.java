@@ -60,15 +60,21 @@ public class YouTubeStream {
 
     public static Comparator<YouTubeStream> compareStream() {
         return (s1, s2) -> {
-            int compare = Utils.compare(getType(s1), getType(s2));
-            if (compare == 0) {
+            int compareType = Utils.compare(getType(s1), getType(s2));
+            if (compareType == 0) {
                 if (s1 instanceof YouTubeDashStream
                         && s2 instanceof YouTubeDashStream) {
                     return YouTubeDashStream.comparator()
                             .compare(((YouTubeDashStream) s1), ((YouTubeDashStream) s2));
+                } else if (s1 instanceof YouTubeNonDashStream
+                        && s2 instanceof YouTubeNonDashStream) {
+                    int compare = Utils.compare(((YouTubeNonDashStream) s1).getHeight(),
+                            ((YouTubeNonDashStream) s2).getHeight());
+                    return compare != 0 ? compare : Utils.compare(((YouTubeNonDashStream) s1).getAudioBitrate(),
+                            ((YouTubeNonDashStream) s2).getAudioBitrate());
                 }
             }
-            return compare;
+            return compareType;
         };
     }
 
