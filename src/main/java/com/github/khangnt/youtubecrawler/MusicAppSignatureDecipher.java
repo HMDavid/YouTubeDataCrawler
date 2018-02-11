@@ -80,7 +80,7 @@ public class MusicAppSignatureDecipher implements SignatureDecipher {
         } finally {
             Utils.closeQuietly(response);
         }
-        throw new SignatureDecryptException("Decrypt signature failed", exception, vid);
+        throw new SignatureDecryptException("Decrypt signature failed: " + exception.getMessage(), exception, vid);
     }
 
 
