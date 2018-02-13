@@ -771,7 +771,7 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
         if (isEmpty(videoInfo.get("videostats_playback_base_url"))) {
             return;
         }
-        Completable.create(emitter -> {
+        Completable.fromAction(() -> {
             String playbackUrl = videoInfo.get("videostats_playback_base_url").get(0);
             HttpUrl httpUrl = HttpUrl.parse(playbackUrl);
             if (httpUrl == null) return;
@@ -786,7 +786,6 @@ public class DefaultYouTubeStreamExtractor implements YouTubeStreamExtractor {
                     .setQueryParameter("cpn", cpn.toString());
             // mark watched
             blockingDownload(newBuilder.build().toString(), false, null);
-            emitter.onCompleted();
         }).subscribeOn(Schedulers.io()).subscribe(() -> {
             System.out.println("Mark " + vid + " watched");
         }, Throwable::printStackTrace);
