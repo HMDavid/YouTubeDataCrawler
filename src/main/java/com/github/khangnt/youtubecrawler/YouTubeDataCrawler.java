@@ -24,8 +24,12 @@ import com.github.khangnt.youtubecrawler.model.youtube.VideoWithContext;
 import com.github.khangnt.youtubecrawler.model.youtube.WatchCardAlbumList;
 import com.github.khangnt.youtubecrawler.model.youtube.WatchCardVideoList;
 import com.github.khangnt.youtubecrawler.model.youtube.WindowSettings;
+import com.github.khangnt.youtubecrawler.model.youtube.data.Continuation2;
+import com.github.khangnt.youtubecrawler.model.youtube.data.YouTubeDataResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.util.concurrent.TimeUnit;
@@ -41,16 +45,18 @@ import rx.schedulers.Schedulers;
 import rx.subjects.BehaviorSubject;
 
 import static com.github.khangnt.youtubecrawler.internal.Preconditions.notNull;
+import static com.github.khangnt.youtubecrawler.internal.Utils.getYouTubeFullUrl;
 import static com.github.khangnt.youtubecrawler.internal.Utils.mobileWebPageDownloadRequestBuilder;
 import static com.github.khangnt.youtubecrawler.internal.Utils.parseAjaxResponse;
 import static com.github.khangnt.youtubecrawler.internal.Utils.parseWindowSettings;
+import static com.github.khangnt.youtubecrawler.internal.Utils.parseYouTubeDataResponse;
 import static com.github.khangnt.youtubecrawler.internal.Utils.rx;
 
 /**
  * Created by Khang NT on 10/24/17.
  * Email: khang.neon.1997@gmail.com
  */
-public class YouTubeData {
+public class YouTubeDataCrawler {
     private static final String HOME_PAGE_URL = "https://m.youtube.com/";
     private static final String HOME_FEED_ENTRY_URL = "https://m.youtube.com/feed?ajax=1&layout=tablet&tsp=1&utcoffset=" + C.UTC_OFFSET;
 
@@ -62,6 +68,10 @@ public class YouTubeData {
 
     private static final String SEARCH_RESULT_PAGE_URL = "https://m.youtube.com/results"; // ?search_query=...
     private static final String SEARCH_RESULT_AJAX_URL = "https://m.youtube.com/results?ajax=1&layout=tablet&utcoffset=" + C.UTC_OFFSET;
+
+    private static final String PLAYLIST_BASE_URL = "https://m.youtube.com/playlist?list=";
+
+    private static final String WATCH_BASE_URL = "https://m.youtube.com/watch";
 
     private static final String SEARCH_QUERY = "search_query";
 
@@ -79,7 +89,7 @@ public class YouTubeData {
 
     private BehaviorSubject<WindowSettings> mWindowSettingsBehaviorSubject;
 
-    private YouTubeData(OkHttpClient okHttpClient, Gson gson) {
+    private YouTubeDataCrawler(OkHttpClient okHttpClient, Gson gson) {
         this.okHttpClient = okHttpClient;
         this.gson = gson;
     }
@@ -94,21 +104,21 @@ public class YouTubeData {
     }
 
     public Observable<ResponseData<FeedResponse>> homeFeed() {
-        return getWindowSettings(HOME_PAGE_URL)
+        return getWindowSettings()
                 .flatMap(windowSettings -> handleAjaxRequest(HOME_FEED_ENTRY_URL,
                         HOME_PAGE_URL, windowSettings, FeedResponse.class));
 
     }
 
     public Observable<ResponseData<FeedResponse>> trendingFeed() {
-        return getWindowSettings(TRENDING_PAGE_URL)
+        return getWindowSettings()
                 .flatMap(windowSettings -> handleAjaxRequest(TRENDING_FEED_ENTRY_URL,
                         TRENDING_PAGE_URL, windowSettings, FeedResponse.class));
 
     }
 
     public Observable<ResponseData<FeedResponse>> recommendedFeed() {
-        return getWindowSettings(RECOMMENDED_PAGE_URL)
+        return getWindowSettings()
                 .flatMap(windowSettings -> handleAjaxRequest(RECOMMENDED_FEED_ENTRY_URL,
                         RECOMMENDED_PAGE_URL, windowSettings, FeedResponse.class));
 
@@ -121,7 +131,7 @@ public class YouTubeData {
         String searchResultAjaxUrl = notNull(HttpUrl.parse(SEARCH_RESULT_AJAX_URL))
                 .newBuilder().setQueryParameter(SEARCH_QUERY, query)
                 .build().toString();
-        return getWindowSettings(searchResultPageUrl)
+        return getWindowSettings()
                 .flatMap(windowSettings -> handleAjaxRequest(searchResultAjaxUrl, searchResultPageUrl,
                         windowSettings, SearchResponse.class));
     }
@@ -134,7 +144,7 @@ public class YouTubeData {
                 .setQueryParameter(LAYOUT_PARAM, "tablet")
                 .setQueryParameter(UTC_OFFSET_PARAM, String.valueOf(C.UTC_OFFSET))
                 .build().toString();
-        return getWindowSettings(channelHomePageUrl)
+        return getWindowSettings()
                 .flatMap(windowSettings -> handleAjaxRequest(ajaxUrl, channelHomePageUrl,
                         windowSettings, ChannelResponse.class));
     }
@@ -147,16 +157,18 @@ public class YouTubeData {
         return getStreamExtractor(new MusicAppSignatureDecipher(okHttpClient, gson));
     }
 
-    private Observable<WindowSettings> getWindowSettings(String webPageUrl) {
+    private Observable<WindowSettings> getWindowSettings() {
         return Observable.defer(() -> {
             if (mWindowSettingsBehaviorSubject == null
                     || mWindowSettingsBehaviorSubject.hasThrowable()) {
                 mWindowSettingsBehaviorSubject = BehaviorSubject.create();
-                Request.Builder webPageReqBuilder = mobileWebPageDownloadRequestBuilder(webPageUrl);
+                Request.Builder webPageReqBuilder =
+                        mobileWebPageDownloadRequestBuilder(HOME_PAGE_URL);
                 rx(getOkHttpClient().newCall(webPageReqBuilder.build()))
                         .flatMap(parseWindowSettings(getGson()))
                         .subscribeOn(Schedulers.io())
-                        .subscribe(mWindowSettingsBehaviorSubject::onNext, mWindowSettingsBehaviorSubject::onError);
+                        .subscribe(mWindowSettingsBehaviorSubject::onNext,
+                                mWindowSettingsBehaviorSubject::onError);
             }
 
             return mWindowSettingsBehaviorSubject.take(1).asObservable();
@@ -181,6 +193,94 @@ public class YouTubeData {
                     .setQueryParameter(CLICK_TRACKING_PARAM, continuation.getClickTrackingParams())
                     .build();
             return new ResponseData<>(response, handleAjaxRequest(nextUrl.toString(), referer, windowSettings, tClass));
+        } else {
+            return new ResponseData<>(response, null);
+        }
+    }
+
+    public Observable<ResponseData<YouTubeDataResponse>> search2(String query) {
+        String searchResultPageUrl = notNull(HttpUrl.parse(SEARCH_RESULT_PAGE_URL))
+                .newBuilder().setQueryParameter(SEARCH_QUERY, query)
+                .build().toString();
+        String searchResultAjaxUrl = notNull(HttpUrl.parse(SEARCH_RESULT_AJAX_URL))
+                .newBuilder().setQueryParameter(SEARCH_QUERY, query)
+                .build().toString();
+        return getWindowSettings()
+                .flatMap(windowSettings ->
+                        handleAjaxRequest2(searchResultAjaxUrl, searchResultPageUrl, windowSettings));
+    }
+
+    public Observable<ResponseData<YouTubeDataResponse>> playlistVideos(String playlistId) {
+        String playlistPage = PLAYLIST_BASE_URL + playlistId;
+        String ajaxUrl = notNull(HttpUrl.parse(playlistPage)).newBuilder()
+                .setQueryParameter(AJAX_PARAM, "1")
+                .setQueryParameter(LAYOUT_PARAM, "tablet")
+                .setQueryParameter(UTC_OFFSET_PARAM, String.valueOf(C.UTC_OFFSET))
+                .build().toString();
+        return getWindowSettings()
+                .flatMap(windowSettings -> handleAjaxRequest2(ajaxUrl, playlistPage, windowSettings));
+    }
+
+    public Observable<ResponseData<YouTubeDataResponse>> channel2(String channelId, ChannelTab channelTab) {
+        String channelHomePageUrl = CHANNEL_HOME_PAGE_URL + "/" + channelId
+                + channelTab.getLastPathSegment();
+        String ajaxUrl = notNull(HttpUrl.parse(channelHomePageUrl)).newBuilder()
+                .setQueryParameter(AJAX_PARAM, "1")
+                .setQueryParameter(LAYOUT_PARAM, "tablet")
+                .setQueryParameter(UTC_OFFSET_PARAM, String.valueOf(C.UTC_OFFSET))
+                .build().toString();
+        return getWindowSettings()
+                .flatMap(windowSettings ->
+                        handleAjaxRequest2(ajaxUrl, channelHomePageUrl, windowSettings));
+    }
+
+    public Observable<ResponseData<YouTubeDataResponse>> watchPage(
+            String videoId,
+            @Nullable String playlistId
+    ) {
+        HttpUrl.Builder builder = notNull(HttpUrl.parse(WATCH_BASE_URL)).newBuilder()
+                .setQueryParameter("v", videoId);
+        if (playlistId != null) {
+            builder.setQueryParameter("list", playlistId);
+        }
+        String referer = builder.build().toString();
+        String ajaxUrl = builder.setQueryParameter(AJAX_PARAM, "1")
+                .setQueryParameter(LAYOUT_PARAM, "tablet")
+                .setQueryParameter(UTC_OFFSET_PARAM, String.valueOf(C.UTC_OFFSET))
+                .toString();
+        return getWindowSettings()
+                .flatMap(windowSettings -> handleAjaxRequest2(ajaxUrl, referer, windowSettings));
+    }
+
+    private Observable<ResponseData<YouTubeDataResponse>> handleAjaxRequest2(
+            String ajaxUrl, String referer, WindowSettings windowSettings) {
+        Request request = Utils.createAjaxRequest(ajaxUrl, referer, windowSettings);
+        return rx(getOkHttpClient().newCall(request))
+                .map(parseYouTubeDataResponse(getGson()))
+                .map(response -> createResponseData2(response, ajaxUrl, referer, windowSettings));
+    }
+
+    private ResponseData<YouTubeDataResponse> createResponseData2(
+            YouTubeDataResponse response,
+            String ajaxUrl, String referer,
+            WindowSettings windowSettings
+    ) {
+        if (response.isOk() && response.hasNext()) {
+            HttpUrl nextUrl;
+            if (response.getContinuation() != null) {
+                Continuation2 continuation = response.getContinuation();
+                nextUrl = notNull(HttpUrl.parse(ajaxUrl)).newBuilder()
+                        .setQueryParameter(ACTION_CONTINUATION_PARAM, "1")
+                        .setQueryParameter(CONTINUATION_TOKEN_PARAM, continuation.getContinuationToken())
+                        .setQueryParameter(CLICK_TRACKING_PARAM, continuation.getClickTrackingParam())
+                        .build();
+            } else {
+                if (response.getNextUrl() == null) throw new IllegalStateException("Response next url == null");
+                nextUrl = notNull(HttpUrl.parse(getYouTubeFullUrl(response.getNextUrl()))).newBuilder()
+                        .setQueryParameter(AJAX_PARAM, "1")
+                        .build();
+            }
+            return new ResponseData<>(response, handleAjaxRequest2(nextUrl.toString(), referer, windowSettings));
         } else {
             return new ResponseData<>(response, null);
         }
@@ -244,13 +344,13 @@ public class YouTubeData {
             return this;
         }
 
-        public YouTubeData build() {
+        public YouTubeDataCrawler build() {
             Gson gson = gsonBuilder.create();
             OkHttpClient okHttpClient = okHttpClientBuilder.build();
             if (okHttpClient.cookieJar() == null) {
                 throw new IllegalStateException("CookieJar is required");
             }
-            return new YouTubeData(okHttpClient, gson);
+            return new YouTubeDataCrawler(okHttpClient, gson);
         }
     }
 
