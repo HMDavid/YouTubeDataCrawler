@@ -101,10 +101,8 @@ public class YouTubeDataResponseParser {
                 items.addAll(parseArtistAlbums(jsonObject));
                 return true;
             } else if ("next_continuation_data".equals(itemType)) {
-                if (isEmpty(nextUrl)) {
-                    continuation[0] = new Continuation2(jsonObject.get("continuation").getAsString(),
-                            safeGet(jsonObject, "click_tracking_params", ""));
-                }
+                continuation[0] = new Continuation2(jsonObject.get("continuation").getAsString(),
+                        safeGet(jsonObject, "click_tracking_params", ""));
                 return true;
             }
 

@@ -46,6 +46,7 @@ import rx.subjects.BehaviorSubject;
 
 import static com.github.khangnt.youtubecrawler.internal.Preconditions.notNull;
 import static com.github.khangnt.youtubecrawler.internal.Utils.getYouTubeFullUrl;
+import static com.github.khangnt.youtubecrawler.internal.Utils.isEmpty;
 import static com.github.khangnt.youtubecrawler.internal.Utils.mobileWebPageDownloadRequestBuilder;
 import static com.github.khangnt.youtubecrawler.internal.Utils.parseAjaxResponse;
 import static com.github.khangnt.youtubecrawler.internal.Utils.parseWindowSettings;
@@ -198,6 +199,27 @@ public class YouTubeDataCrawler {
         }
     }
 
+    public Observable<ResponseData<YouTubeDataResponse>> trendingFeed2() {
+        return getWindowSettings()
+                .flatMap(windowSettings ->
+                        handleAjaxRequest2(TRENDING_FEED_ENTRY_URL, TRENDING_PAGE_URL, windowSettings));
+
+    }
+
+    public Observable<ResponseData<YouTubeDataResponse>> recommendedFeed2() {
+        return getWindowSettings()
+                .flatMap(windowSettings ->
+                        handleAjaxRequest2(RECOMMENDED_FEED_ENTRY_URL, RECOMMENDED_PAGE_URL, windowSettings));
+
+    }
+
+    public Observable<ResponseData<YouTubeDataResponse>> homeFeed2() {
+        return getWindowSettings()
+                .flatMap(windowSettings ->
+                        handleAjaxRequest2(HOME_FEED_ENTRY_URL, HOME_PAGE_URL, windowSettings));
+
+    }
+
     public Observable<ResponseData<YouTubeDataResponse>> search2(String query) {
         String searchResultPageUrl = notNull(HttpUrl.parse(SEARCH_RESULT_PAGE_URL))
                 .newBuilder().setQueryParameter(SEARCH_QUERY, query)
@@ -266,20 +288,28 @@ public class YouTubeDataCrawler {
             WindowSettings windowSettings
     ) {
         if (response.isOk() && response.hasNext()) {
-            HttpUrl nextUrl;
-            if (response.getContinuation() != null) {
-                Continuation2 continuation = response.getContinuation();
-                nextUrl = notNull(HttpUrl.parse(ajaxUrl)).newBuilder()
-                        .setQueryParameter(ACTION_CONTINUATION_PARAM, "1")
-                        .setQueryParameter(CONTINUATION_TOKEN_PARAM, continuation.getContinuationToken())
-                        .setQueryParameter(CLICK_TRACKING_PARAM, continuation.getClickTrackingParam())
-                        .build();
+            HttpUrl.Builder nextUrl;
+            if (response.getNextUrl() != null) {
+                nextUrl = notNull(HttpUrl.parse(getYouTubeFullUrl(response.getNextUrl()))).newBuilder();
             } else {
-                if (response.getNextUrl() == null) throw new IllegalStateException("Response next url == null");
-                nextUrl = notNull(HttpUrl.parse(getYouTubeFullUrl(response.getNextUrl()))).newBuilder()
-                        .setQueryParameter(AJAX_PARAM, "1")
-                        .build();
+                nextUrl = notNull(HttpUrl.parse(ajaxUrl)).newBuilder()
+                        .removeAllQueryParameters(CONTINUATION_TOKEN_PARAM)
+                        .removeAllQueryParameters(CLICK_TRACKING_PARAM);
             }
+            HttpUrl tempUrl = nextUrl.build();
+            if (response.getContinuation() != null) {
+                nextUrl.setQueryParameter(CONTINUATION_TOKEN_PARAM,
+                        response.getContinuation().getContinuationToken());
+                nextUrl.setQueryParameter(CLICK_TRACKING_PARAM,
+                        response.getContinuation().getClickTrackingParam());
+            } else if (isEmpty(tempUrl.queryParameter(CONTINUATION_TOKEN_PARAM))) {
+                // doesn't have continue token
+                return new ResponseData<>(response, null);
+            }
+            nextUrl.setQueryParameter(AJAX_PARAM, "1")
+                    .setQueryParameter(ACTION_CONTINUATION_PARAM, "1")
+                    .setQueryParameter(LAYOUT_PARAM, "tablet")
+                    .setQueryParameter(UTC_OFFSET_PARAM, String.valueOf(C.UTC_OFFSET));
             return new ResponseData<>(response, handleAjaxRequest2(nextUrl.toString(), referer, windowSettings));
         } else {
             return new ResponseData<>(response, null);
