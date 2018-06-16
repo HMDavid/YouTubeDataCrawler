@@ -4,7 +4,10 @@ import com.github.khangnt.youtubecrawler.Const;
 import com.github.khangnt.youtubecrawler.exception.HttpClientException;
 import com.github.khangnt.youtubecrawler.exception.RegexMismatchException;
 import com.github.khangnt.youtubecrawler.model.youtube.WindowSettings;
+import com.github.khangnt.youtubecrawler.model.youtube.data.YouTubeDataResponse;
+import com.github.khangnt.youtubecrawler.model.youtube.data.YouTubeDataResponseParser;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -138,6 +141,18 @@ public class Utils {
             ajaxRes = unescapeUtf32(ajaxRes.substring(offset));
             return gson.fromJson(ajaxRes, tClass);
         };
+    }
+
+    public static Func1<String, YouTubeDataResponse> parseYouTubeDataResponse(Gson gson) {
+        return rawAjaxRes -> {
+            JsonObject jsonObject = gson.fromJson(handleRawAjaxResponse(rawAjaxRes), JsonObject.class);
+            return YouTubeDataResponseParser.parse(jsonObject);
+        };
+    }
+
+    private static String handleRawAjaxResponse(String ajaxRes) {
+        int offset = ajaxRes.indexOf("{");
+        return unescapeUtf32(ajaxRes.substring(offset));
     }
 
     public static Request createAjaxRequest(String url, String referer, WindowSettings windowSettings) {
@@ -297,6 +312,13 @@ public class Utils {
         } else {
             throw new RuntimeException(throwable);
         }
+    }
+
+    @Nullable
+    public static String parseYouTubePlaylistIdFromUrl(String src) {
+        if (isEmpty(src)) return null;
+        Matcher matcher = Pattern.compile("[?|&|\\/]list=([a-zA-Z0-9-_]+)").matcher(src);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
 }
