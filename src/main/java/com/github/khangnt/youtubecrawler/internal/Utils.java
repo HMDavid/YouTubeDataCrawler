@@ -23,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import okhttp3.Call;
+import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.Response;
 import rx.Emitter;
@@ -65,7 +66,13 @@ public class Utils {
     }
 
     public static Request.Builder mobileWebPageDownloadRequestBuilder(String url) {
-        return new Request.Builder().url(url)
+        HttpUrl httpUrl = HttpUrl.parse(url);
+        if (httpUrl == null) throw new RuntimeException("Invalid url " + url);
+        return new Request.Builder()
+                .url(httpUrl
+                        .newBuilder()
+                        .setQueryParameter("disable_polymer", "true")
+                        .build())
                 .addHeader(HTTP_ACCEPT, C.BROWSER_ACCEPT)
                 .addHeader(HTTP_ACCEPT_LANGUAGE, C.BROWSER_ACCEPT_LANGUAGE)
                 .addHeader(HTTP_ACCEPT_CHARSET, C.BROWSER_ACCEPT_CHARSET)
@@ -73,7 +80,13 @@ public class Utils {
     }
 
     public static Request.Builder desktopWebPageDownloadRequestBuilder(String url) {
-        return new Request.Builder().url(url)
+        HttpUrl httpUrl = HttpUrl.parse(url);
+        if (httpUrl == null) throw new RuntimeException("Invalid url " + url);
+        return new Request.Builder()
+                .url(httpUrl
+                        .newBuilder()
+                        .setQueryParameter("disable_polymer", "true")
+                        .build())
                 .addHeader(HTTP_ACCEPT, C.BROWSER_ACCEPT)
                 .addHeader(HTTP_ACCEPT_LANGUAGE, C.BROWSER_ACCEPT_LANGUAGE)
                 .addHeader(HTTP_ACCEPT_CHARSET, C.BROWSER_ACCEPT_CHARSET)
