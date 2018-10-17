@@ -2,6 +2,7 @@ package com.github.khangnt.youtubecrawler.model.youtube.data;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
@@ -18,7 +19,8 @@ class JsonTraveler {
     }
 
     static void travel(JsonElement jsonElement, Callback callback) {
-        if (jsonElement instanceof JsonPrimitive) {
+        if (jsonElement instanceof JsonPrimitive
+                || jsonElement instanceof JsonNull) {
             return;
         }
         if (jsonElement instanceof JsonObject) {
