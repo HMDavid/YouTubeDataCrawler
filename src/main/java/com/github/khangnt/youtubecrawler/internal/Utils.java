@@ -2,7 +2,6 @@ package com.github.khangnt.youtubecrawler.internal;
 
 import com.github.khangnt.youtubecrawler.Const;
 import com.github.khangnt.youtubecrawler.exception.HttpClientException;
-import com.github.khangnt.youtubecrawler.exception.RegexMismatchException;
 import com.github.khangnt.youtubecrawler.model.youtube.WindowSettings;
 import com.github.khangnt.youtubecrawler.model.youtube.data.YouTubeDataResponse;
 import com.github.khangnt.youtubecrawler.model.youtube.data.YouTubeDataResponseParser;
@@ -51,6 +50,11 @@ public class Utils {
     private static final Pattern XS_DURATION_PATTERN =
             Pattern.compile("^(-)?P(([0-9]*)Y)?(([0-9]*)M)?(([0-9]*)D)?"
                     + "(T(([0-9]*)H)?(([0-9]*)M)?(([0-9.]*)S)?)?$");
+    private static final String REG_WS_BUILD_ID = "(?i)['\"](build_id|PAGE_CL)['\"][\\s\\n]*?:[\\s\\n]*?['\"]?([^'\"]+?)['\"]?[\\s\\n]*?[,}]";
+    private static final String REG_WS_BUILD_LABEL = "(?i)['\"](build_label|PAGE_BUILD_LABEL)['\"][\\s\\n]*?:[\\s\\n]*?['\"]?([^'\"]+?)['\"]?[\\s\\n]*?[,}]";
+    private static final String REG_WS_CLIENT_NAME = "(?i)['\"](client_name|INNERTUBE_CONTEXT_CLIENT_NAME)['\"][\\s\\n]*?:[\\s\\n]*?['\"]?([^'\"]+?)['\"]?[\\s\\n]*?[,}]";
+    private static final String REG_WS_CLIENT_VERSION = "(?i)['\"](client_version|INNERTUBE_CONTEXT_CLIENT_VERSION)['\"][\\s\\n]*?:[\\s\\n]*?['\"]?([^'\"]+?)['\"]?[\\s\\n]*?[,}]";
+    private static final String REG_WS_VARIANT_CHECKSUM = "(?i)['\"](variants_checksum|VARIANTS_CHECKSUM)['\"][\\s\\n]*?:[\\s\\n]*?['\"]?([^'\"]+?)['\"]?[\\s\\n]*?[,}]";
 
     static void addXYouTubeHeader(Request.Builder builder, WindowSettings windowSettings) {
         builder.header(X_YOUTUBE_VARIANTS_CHECKSUM, windowSettings.getVariantChecksum())
@@ -107,20 +111,42 @@ public class Utils {
             Matcher matcher = RegexUtils.search("window\\.settings\\s*=\\s*(\\{.+?\\})\\s*;", webPage);
             if (matcher != null) {
                 String windowSettingsJson = matcher.group(1);
-                WindowSettings windowSettings = gson.fromJson(windowSettingsJson, WindowSettings.class);
-                return Observable.just(windowSettings);
-            } else {
-                return Observable.error(new RegexMismatchException("Couldn't parse windows settings"));
+                try {
+                    WindowSettings windowSettings = gson.fromJson(windowSettingsJson, WindowSettings.class);
+                    if (windowSettings.getClientName() != null
+                            && windowSettings.getClientVersion() != null
+                            && windowSettings.getVariantChecksum() != null) {
+                        return Observable.just(windowSettings);
+                    }
+                } catch (Throwable ignore) {
+                }
             }
+            Matcher buildIdMatcher = RegexUtils
+                    .search(REG_WS_BUILD_ID, webPage, "Couldn't parse window settings [bi]");
+            Matcher buildLabelMatcher = RegexUtils
+                    .search(REG_WS_BUILD_LABEL, webPage, "Couldn't parse window settings [bl]");
+            Matcher clientNameMatcher = RegexUtils
+                    .search(REG_WS_CLIENT_NAME, webPage, "Couldn't parse window settings [cn]");
+            Matcher clientVersionMatcher = RegexUtils
+                    .search(REG_WS_CLIENT_VERSION, webPage, "Couldn't parse window settings [cv]");
+            Matcher variantChecksumMatcher = RegexUtils
+                    .search(REG_WS_VARIANT_CHECKSUM, webPage, "Couldn't parse window settings [vc]");
+            return Observable.just(new WindowSettings(
+                    buildIdMatcher.group(2),
+                    buildLabelMatcher.group(2),
+                    clientNameMatcher.group(2),
+                    clientVersionMatcher.group(2),
+                    variantChecksumMatcher.group(2)
+            ));
         };
     }
 
     private static byte[] intToByteArray(int value) {
-        return new byte[] {
-                (byte)(value >>> 24),
-                (byte)(value >>> 16),
-                (byte)(value >>> 8),
-                (byte)value};
+        return new byte[]{
+                (byte) (value >>> 24),
+                (byte) (value >>> 16),
+                (byte) (value >>> 8),
+                (byte) value};
     }
 
     // unescape all \U0001F629 to 😩
@@ -293,7 +319,7 @@ public class Utils {
     }
 
     public static int compare(int var0, int var1) {
-        return var0 < var1?-1:(var0 == var1?0:1);
+        return var0 < var1 ? -1 : (var0 == var1 ? 0 : 1);
     }
 
     public static String join(Collection<String> list, String delimiter) {

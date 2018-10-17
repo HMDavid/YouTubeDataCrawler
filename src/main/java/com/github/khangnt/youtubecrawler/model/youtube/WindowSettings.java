@@ -23,6 +23,14 @@ public class WindowSettings {
     public WindowSettings() {
     }
 
+    public WindowSettings(String buildId, String buildLabel, String clientName, String clientVersion, String variantChecksum) {
+        this.buildId = buildId;
+        this.buildLabel = buildLabel;
+        this.clientName = clientName;
+        this.clientVersion = clientVersion;
+        this.variantChecksum = variantChecksum;
+    }
+
     public String getBuildId() {
         return buildId;
     }
